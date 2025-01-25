@@ -23,7 +23,7 @@ The dataset used in this project is sourced from the Home Credit Default Risk co
 
 ### Repository Structure
 
-- `documents`: Contains initial planning and design artifacts. 
+- `documents/`: Contains initial planning and design artifacts. 
 - `data/`: Contains the raw and processed datasets.
 - `notebooks/`: Jupyter notebooks detailing the analysis and modeling processes.
 - `models/`: Saved models and related artifacts.
