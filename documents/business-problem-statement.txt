@@ -1,1 +1,37 @@
 Business Problem Statement
+
+Business Problem
+
+The primary challenge faced by the loan applicant selection and processing team is the difficulty in assessing the repayment capability of unbanked and underserved populations. These individuals often encounter significant barriers to obtaining financial loans due to their limited or unattended credit histories. This creates a pressing need to accurately quantify the risk of loan defaults to facilitate more inclusive financial decision-making. The lack of precise risk assessments can result in either penalizing viable applicants or granting loans to individuals with high default probabilities, thereby affecting both the organization's financial health and its ability to serve underserved communities. Metrics such as applicant acceptance rates, repayment rates, and overall portfolio health will highlight the severity of this issue.
+
+Benefit of a Solution
+
+A robust solution to this problem will enable Home Credit to better evaluate the default risk of loan applicants using alternative data. By doing so, the organization can expand its lender market while simultaneously offering manageable loan services and positive experiences for applicants. Accurate assessments of repayment capability will reduce financial risk, improve the company’s portfolio performance, and help foster trust and inclusivity. In addition, this solution has the potential to enhance operational efficiency, enabling the team to process applications more quickly and effectively.
+
+Analytic Approach
+
+The project will utilize a logarithmic model to calculate the probability of loan default for each applicant. This approach focuses on predicting a continuous probability rather than providing a binary decision of approval or rejection. The model will analyze alternative data sources, which may include non-traditional indicators of creditworthiness, to improve prediction accuracy.
+
+Success Metrics
+
+The success of the project will be judged by the following criteria:
+
+- High area under the ROC curve, indicating effective discrimination between applicants with high and low default probabilities.
+- Reduction in default rates while maintaining or increasing applicant acceptance rates.
+- Positive feedback from stakeholders regarding the usability and reliability of the delivered model.
+- Timely delivery of all project milestones and final outputs as specified in the timeline.
+
+Scope
+
+The project will deliver a finalized model and a corresponding output file containing customer IDs and their associated probabilities of loan default. Key exclusions include the integration of this model into existing loan processing systems and post-delivery monitoring or updates. Future opportunities may include extending the model to incorporate additional data sources or integrating machine learning techniques for enhanced accuracy. The scope also depends on meeting milestones, including individual exploratory data analysis, group member selection, model development, and presentation of results, with final deadlines as detailed below. Any additional deliverables must be agreed upon and represented in a revised problem statement.
+
+Details
+
+The project will be executed by a student team of future Data Scientists. Key project milestones include:
+
+- Individual Exploratory Data Analysis: Due 2025-02-16 11:59 PM
+- Final Group Member Selection: Due 2025-02-16 11:59 PM
+- Final Analytic Model Submission: Due 2025-03-09 11:59 PM
+- Result Presentation: Due 2025-04-06 11:59 PM
+
+The project will be executed remotely, leveraging alternative data sources to address the root problem. Stakeholders and decision-makers will be engaged throughout the process to ensure alignment and timely delivery of project objectives.
