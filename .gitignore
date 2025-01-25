@@ -48,5 +48,6 @@ po/*~
 # RStudio Connect folder
 rsconnect/
 
-# Raw uncompressed data files
-data/*.csv
+# Raw compressed and uncompressed data files
+*.csv
+home-credit-default-risk.zip
