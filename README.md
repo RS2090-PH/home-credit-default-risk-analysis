@@ -10,12 +10,12 @@ The goal of this project is to predict the likelihood of an applicant defaulting
 
 We adhere to the CRISP-DM (Cross-Industry Standard Process for Data Mining) framework, which consists of the following phases:
 
-1. Business Understanding: Grasping the project's objectives and requirements from a business perspective.
-2. Data Understanding: Collecting and familiarizing ourselves with the data to identify quality issues and gain initial insights.
-3. Data Preparation: Cleaning and transforming the data to create a suitable dataset for modeling.
-4. Modeling: Applying various modeling techniques to the prepared data to develop predictive models.
-5. Evaluation: Assessing the models to ensure they meet business objectives and selecting the best-performing one.
-6. Deployment: Implementing the selected model into a real-world application for practical use.
+1. **Business Understanding**: Grasping the project's objectives and requirements from a business perspective.
+2. **Data Understanding**: Collecting and familiarizing ourselves with the data to identify quality issues and gain initial insights.
+3. **Data Preparation**: Cleaning and transforming the data to create a suitable dataset for modeling.
+4. **Modeling**: Applying various modeling techniques to the prepared data to develop predictive models.
+5. **Evaluation**: Assessing the models to ensure they meet business objectives and selecting the best-performing one.
+6. **Deployment**: Implementing the selected model into a real-world application for practical use.
 
 ### Data Source
 
