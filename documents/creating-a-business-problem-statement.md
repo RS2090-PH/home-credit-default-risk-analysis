@@ -1,7 +1,7 @@
 Mendelow's Matrix
 High
 	Have a Voice	Ownership
-	Awareness		Get Buy-In
+	Awareness	Get Buy-In
 Low								High
 
 
