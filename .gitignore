@@ -50,4 +50,4 @@ rsconnect/
 
 # Raw compressed and uncompressed data files
 *.csv
-home-credit-default-risk.zip
+*.zip
