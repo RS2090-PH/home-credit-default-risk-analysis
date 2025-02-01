@@ -15,10 +15,19 @@ library(tidyverse)
 library(dplyr)
 # library(gt)
 
-data_raw <- read.csv("REPLACE.csv")
+app_test_raw <- read.csv("application_test.csv")
+app_train_raw <- read.csv("application_train.csv")
+b_balance_raw <- read.csv("bureau_balance.csv")
+bereau_raw <- read.csv("bureau.csv")
+cc_balance_raw <- read.csv("credit_card_balance.csv")
+col_desc_raw <- read.csv("HomeCredit_columns_description.csv")
+inst_pmnts_raw <- read.csv("installments_payments.csv")
+pos_cash_bal_raw <- read.csv("POS_CASH_balance.csv")
+prev_app_raw <- read.csv("previous_application.csv")
+sample_sub_raw <- read.csv("sample_submission.csv")
 glimpse(data_raw)
 
 
-data_clean <- data_raw |>
-  mutate(city = factor(city, levels = sort(unique(city))))
+# data_clean <- data_raw |>
+#   mutate(city = factor(city, levels = sort(unique(city))))
 ```
