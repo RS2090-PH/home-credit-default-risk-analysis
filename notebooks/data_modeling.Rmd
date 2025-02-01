@@ -1,0 +1,24 @@
+---
+title: "Data Modeling"
+author: "Robby Stohel"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+
+library(tidyverse)
+library(dplyr)
+# library(gt)
+
+data_raw <- read.csv("REPLACE.csv")
+glimpse(data_raw)
+
+
+data_clean <- data_raw |>
+  mutate(city = factor(city, levels = sort(unique(city))))
+```
