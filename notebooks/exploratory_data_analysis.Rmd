@@ -4,30 +4,1553 @@ author: "Robby Stohel"
 date: "`r Sys.Date()`"
 output: 
   html_document:
-    toc: true
+    theme: simplex
+    code_folding: hide
+    number_sections: yes
+    toc: yes
+    toc_float:
+      collapsed: true
+    fig_width: 15
+    fig_height: 10
+editor_options: 
+  chunk_output_type: inline
 ---
 
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+**Required Points:**
 
+- Description of the data
+- Discussion of missing data
+- Exploratory visualizations and/or summary tables
+- Results section
+- Professional use of notebook
+
+
+# Introduction
+
+In this section of the project, we will conduct exploratory data analysis (EDA) on the datasets provided by *Home Credit* in their *Kaggle* competition focused on predicting `loan default risk`. Utilizing the CRISP-DM methodology, we aim to gain insights into the factors influencing loan defaults by examining the Application Train and Test table alongside additional data from the Bureau, Credit Card Balance, Previous Applications, and Installments tables. This EDA stage will involve identifying patterns, trends, and relationships within the data, which will inform future modeling efforts and risk assessment strategies. By thoroughly analyzing borrower characteristics and credit behavior, we seek to enhance the understanding of loan default dynamics and improve lending decisions.
+
+---
+
+
+# Initial Considerations
+
+## Prohibited Factors for Loan Decisions
+
+Lending regulations across various countries prohibit the use of certain personal data when making loan decisions to prevent discrimination. The following list aggregates restricted factors from the *United States, Czech Republic, Slovakia, Kazakhstan, China, Vietnam, Air Bank (Czech Republic), India, Indonesia, and the Philippines* **as these locations were listed as areas of operation for Home Credit based on their website**. These regions have laws and regulations that generally prohibit discrimination based on attributes such as race, ethnicity, religion, gender, age, disability, and social status. Below is a combined and deduplicated list of factors that cannot legally be used to determine loan eligibility.  
+
+- **Race**  
+- **Ethnicity**  
+- **Religion or belief**  
+- **Gender**  
+- **Age (unless related to contract capacity)**  
+- **Disability**  
+- **Marital status**  
+- **Nationality or place of birth**  
+- **Social status or caste**  
+- **Receipt of public assistance**  
+- **Language**  
+- **Political beliefs**  
+- **Familial status (in housing-related loans)**  
+- **Exercising consumer protection rights**  
+
+This list provides a broad overview of anti-discrimination factors applicable across multiple jurisdictions. However, specific regulations may vary by country. Using illegal factors in lending decisions can result in lawsuits, regulatory penalties, and reputational damage.
+
+That said, the data we have gathered can still offer valuable insights for other purposes, such as marketing or sales strategies. As such, we can explore alternative uses for this information without needing to exclude the restricted data at this stage.
+
+## Performance Measures
+
+When evaluating the predictive accuracy of a logarithic predictive model or other such predictive model, the best metrics depend on the type of outcome variable and the link function used in the model. These measures won't be used here for exploratory data analysis, but will come in handy during the modeling stage of this project. Below are key metrics based on the GLM model type used in R:
+
+**Outcome:** range between `0` and `1`  
+**Common use cases:** Fraud detection, customer churn prediction, credit risk modeling  
+**Metrics:**
+
+1. **Accuracy** – Proportion of correctly classified observations.
+```
+mean(predicted_class == actual_class)
+```
+
+2. **AUC-ROC (Area Under the Curve - Receiver Operating Characteristic)** – Measures the model's ability to distinguish between classes.
+```
+library(pROC)
+roc_curve <- roc(actual_class, predicted_prob)
+auc(roc_curve)
+```
+
+3. **Precision, Recall, and F1-score** – Especially useful for imbalanced data.
+```
+library(caret)
+confusionMatrix(predicted_class, actual_class)
+```
+
+4. **Log-Loss (Negative Log-Likelihood)** – Penalizes incorrect classifications with high confidence.
+```
+library(Metrics)
+logLoss(actual_class, predicted_prob)
+```
+
+---
+
+
+# Data Sourcing
+
+This assessment will be utilizing the datasets provided by *Home Credit* in their *Kaggle* project to analyze and develop models for predicting default risk among loan applicants. The comprehensive data, which includes various features related to customer demographics, loan characteristics, and previous application histories, will allow me to identify patterns and insights that can enhance predictive accuracy. This analysis will inform risk assessment strategies, ultimately aiming to improve lending decisions and reduce default rates.
+
+## Data Dictionary
+
+Here's the unified and cleaned-up data dictionary formatted in markdown:
+
+**Application Train and Test**
+
+- **SK_ID_CURR**: Unique identifier for each loan application.
+- **TARGET**: Indicates whether the client experienced repayment difficulties (1) or not (0).
+- **NAME_CONTRACT_TYPE**: Type of loan (e.g., cash loan, revolving loan).
+- **CODE_GENDER**: Gender of the applicant.
+- **FLAG_OWN_CAR**: Indicator of car ownership by the applicant (Y/N).
+- **FLAG_OWN_REALTY**: Indicator of real estate ownership by the applicant (Y/N).
+- **CNT_CHILDREN**: Number of children the applicant has.
+- **AMT_INCOME_TOTAL**: Total annual income of the applicant.
+- **NAME_EDUCATION_TYPE**: Education level of the applicant.
+- **NAME_FAMILY_STATUS**: Family status of the applicant (e.g., single, married).
+- **NAME_HOUSING_TYPE**: Type of housing the applicant resides in (e.g., rented, owned).
+- **DAYS_BIRTH**: Age of the applicant in days (negative value).
+- **DAYS_EMPLOYED**: Duration of employment in days (negative value).
+- **DAYS_ID_PUBLISH**: Days since the applicant's ID was issued (negative value).
+- **FLAG_MOBIL**: Indicator of mobile phone ownership by the applicant (Y/N).
+- **FLAG_EMAIL**: Indicator of email ownership by the applicant (Y/N).
+- **OCCUPATION_TYPE**: Type of occupation of the applicant.
+- **CNT_FAM_MEMBERS**: Number of family members.
+
+**Previous Applications**
+
+- **SK_ID_PREV**: Unique identifier for each previous application.
+- **SK_ID_CURR**: Unique identifier for the application.
+- **NAME_CONTRACT_TYPE**: Type of loan application (e.g., cash loan, credit card).
+- **AMT_APPLICATION**: Amount applied for in the loan application.
+- **AMT_CREDIT**: Amount of credit provided for the application.
+- **NAME_PAYMENT_TYPE**: Chosen payment method for the application.
+- **NAME_PRODUCT_TYPE**: Type of product applied for (e.g., credit card).
+- **DAYS_DECISION**: Days taken to reach a decision on the application.
+- **NAME_PORTFOLIO**: Type of portfolio for the application (e.g., credit card, personal loan).
+- **NAME_STATUS**: Status of the application (e.g., approved, rejected).
+
+**Bureau**
+
+- **SK_ID_BUREAU**: Unique identifier for each bureau record.
+- **SK_ID_CURR**: Unique identifier for the application.
+- **CREDIT_TYPE**: Type of credit (e.g., consumer credit, mortgage).
+- **DAYS_CREDIT**: Days since the first credit line was opened (negative value).
+- **CREDIT_DAY_OVERDUE**: Days overdue on the current credit.
+- **AMT_CREDIT_SUM**: Total amount of credit extended.
+- **AMT_CREDIT_SUM_DEBT**: Total amount of debt outstanding.
+- **AMT_CREDIT_SUM_LIMIT**: Total credit limit available.
+- **NAME_CREDIT_ACTIVE**: Current status of the credit (e.g., Active, Closed).
+
+**Credit Card Balance**
+
+- **SK_ID_PREV**: Unique identifier for the previous credit card application.
+- **SK_ID_CURR**: Unique identifier for the application.
+- **MONTHS_BALANCE**: Month of the observation period relative to the application date.
+- **AMT_BALANCE**: Current balance amount.
+- **AMT_CREDIT_LIMIT_ACTUAL**: Actual credit limit assigned.
+- **AMT_DRAWINGS_CURRENT**: Amount drawn during the current month.
+- **AMT_DRAWINGS_OTHER_CURRENT**: Other amounts drawn in the current month.
+- **AMT_PAYMENT_CURRENT**: Payments made during the current month.
+
+**Installments**
+
+- **SK_ID_PREV**: Unique identifier for the previous application.
+- **SK_ID_CURR**: Unique identifier for the application.
+- **NUM_INSTALMENT_VERSION**: Version of the installment agreement.
+- **NUM_INSTALMENT_NUMBER**: Number of the specific installment.
+- **DAYS_INSTALMENT**: Days remaining until the next installment payment (negative value).
+- **DAYS_ENTRY_PAYMENT**: Days since the last payment was made (negative value).
+- **AMT_INSTALMENT**: Amount due for the installment payment.
+- **AMT_PAYMENT**: Amount paid towards the installment.
+
+**POS Cash Balance**
+
+- **SK_ID_CURR**: Unique identifier for the loan in the sample, linking to the loan application.
+- **SK_ID_PREV**: Unique identifier for the previous credit related to the loan in the sample; one loan can have multiple previous loans.
+- **MONTHS_BALANCE**: Month of balance relative to the application date (e.g., -1 for the most recent month, 0 for the application month).
+- **NAME_CONTRACT_STATUS**: Status of the contract during the month (e.g., Active, Closed).
+- **CNT_INSTALMENT**: Number of installments for the previous credit (may change over time).
+- **CNT_INSTALMENT_FUTURE**: Number of installments remaining to be paid on the previous credit.
+- **SK_DPD**: Days past due (DPD) during the month for the previous credit.
+- **SK_DPD_DEF**: Days past due during the month with tolerance (ignoring debts with low loan amounts) for the previous credit.
+- **AMT_ANNUITY**: Payment amount (annuity) for the previous application.
+
+---
+
+
+# Initial Setup
+
+This section prepares the environment for data processing and analysis. It begins by clearing the workspace to ensure proper memory management and setting global chunk options for knitr. Essential libraries such as `tidyverse`, `dplyr`, and `data.table` are loaded, followed by defining global variables like the random seed and sample size. Additionally, a set of helper functions is provided to streamline common data cleaning tasks, such as reformatting column labels, ordering columns, and handling missing or imbalanced data. The datasets for training and testing are then loaded into memory for subsequent analysis.
+
+***Note:** The code presented in the following sections does not fully adhere to the DRY (Don’t Repeat Yourself) coding principle, which is typically used to avoid redundant code. However, this design choice was made to facilitate the processing of large datasets in their entirety. By doing so, we can ensure that the exploratory data analysis (EDA) results remain consistent without the need to reduce the dataset size. As a result, there will be some repetition in the code, particularly when removing datasets from memory and invoking the garbage collector to manage memory efficiently.*
+
+```{r setup, message=FALSE}
+# Clear workspace and run garbage collection
+rm(list=ls())
+invisible(gc())
+
+# Disable scientific notation
+options(scipen = 999)
+
+# Configure knitr options for knit and chunk behavior
+knitr::opts_knit$set(root.dir = normalizePath(".."))
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+
+# Load required libraries
 library(tidyverse)
 library(dplyr)
-# library(gt)
+library(skimr)
+library(data.table)
+library(DT)
+library(ggplot2)
+library(psych)
+library(stringr)
 
-app_test_raw <- read.csv("application_test.csv")
-app_train_raw <- read.csv("application_train.csv")
-b_balance_raw <- read.csv("bureau_balance.csv")
-bereau_raw <- read.csv("bureau.csv")
-cc_balance_raw <- read.csv("credit_card_balance.csv")
-col_desc_raw <- read.csv("HomeCredit_columns_description.csv")
-inst_pmnts_raw <- read.csv("installments_payments.csv")
-pos_cash_bal_raw <- read.csv("POS_CASH_balance.csv")
-prev_app_raw <- read.csv("previous_application.csv")
-sample_sub_raw <- read.csv("sample_submission.csv")
-glimpse(data_raw)
-
-
-# data_clean <- data_raw |>
-#   mutate(city = factor(city, levels = sort(unique(city))))
+# Set seed and sample size for reproducibility
+seed <- 24601
+sample_size <- 10000
 ```
+
+```{r helper_functions}
+# Function to reformat column names by converting to lowercase and replacing spaces with underscores
+reformat_column_labels <- function(df) {
+  setnames(df, old = names(df), new = gsub("[^a-z0-9_]", "", tolower(gsub(" ", "_", names(df)))))
+  return(df)
+}
+
+# Function to reorder columns in the dataset alphabetically by column name
+order_columns <- function(df) {
+  setcolorder(df, order(names(df)))
+  return(df)
+}
+
+# Quick data cleaning function to handle specific character and numeric values
+quick_clean <- function(df, skip_columns = c()) {
+  df <- df %>%
+    order_columns() %>%
+    mutate_if(
+      is.character,
+      function(x) if (all(unique(x) %in% c("N", "Y", ""))) 
+        factor(ifelse(x == "Y", "Yes", "No"), levels = c("No", "Yes")) 
+      else x
+    ) %>%
+    mutate_if(
+      is.character,
+      function(x) if (all(unique(x) %in% c("Yes", "No", ""))) 
+        factor(x, levels = c("No", "Yes")) 
+      else x
+    ) %>%
+    mutate_if(
+      is.numeric,
+      function(x) if (all(na.omit(unique(x)) %in% c(0, 1))) 
+        factor(ifelse(x == 1, "Yes", "No"), levels = c("No", "Yes")) 
+      else x
+    ) %>%
+    mutate(across(where(is.character) & !any_of(skip_columns), ~ factor(.))) %>% 
+    mutate(across(where(~ is.numeric(.) | is.integer(.)), ~ replace_na(., 0.0))) %>%
+    mutate(across(
+      where(~ is.factor(.) && all(levels(.) == c("No", "Yes"))),
+      ~ fct_explicit_na(., na_level = "No")
+    ))
+  
+  return(df)
+}
+
+# Function to merge a derived dataset with main training and testing datasets
+merge_to_main_sets <- function(derived_dt) {
+  derived_dt <- copy(derived_dt)
+  setkeyv(derived_dt, "SK_ID_CURR")
+  
+  # Create copies of the training and testing datasets to keep the originals intact during merging
+  train_copy <- copy(train)
+  test_copy <- copy(test)
+  
+  train_copy <- merge(train_copy, derived_dt, by = "SK_ID_CURR", all.x = TRUE)
+  test_copy <- merge(test_copy, derived_dt, by = "SK_ID_CURR", all.x = TRUE)
+  
+  # Use global assignment to update the global train and test datasets
+  train <<- train_copy
+  test <<- test_copy
+}
+
+# Function to validate imbalances in the dataset by checking missing, zero values, and most frequent values
+validate_imbalances <- function(df, threshold = 50, exclude_col = NULL) {
+  # Identify columns to process (excluding the specified column)
+  cols_to_check <- setdiff(names(df), exclude_col)
+  
+  # Initialize a dataframe to store imbalance summary
+  imbalance_summary <- data.frame(
+    column = character(0),
+    missing_percentage = numeric(0),
+    zero_percentage = numeric(0),
+    most_frequent_value = character(0),
+    most_frequent_percentage = numeric(0),
+    sum_percentage = numeric(0),  # New column for the sum
+    stringsAsFactors = FALSE
+  )
+  
+  # Loop through each column to calculate imbalances and proportions
+  for (col in cols_to_check) {
+    column_data <- df[[col]]
+    
+    if (is.factor(column_data) || is.character(column_data)) {
+      # For factor or character columns: Calculate imbalance of unique values
+      value_counts <- table(column_data, useNA = "ifany")
+      value_perc <- round((value_counts / length(column_data)) * 100, 2)
+      
+      # Find most frequent value and its percentage
+      most_frequent_value <- names(value_perc)[which.max(value_perc)]
+      most_frequent_percentage <- max(value_perc)
+      
+      # Add imbalance information to the summary
+      imbalance_summary <- rbind(imbalance_summary,
+        data.frame(
+          column = col,
+          missing_percentage = NA,
+          zero_percentage = NA,
+          most_frequent_value = most_frequent_value,
+          most_frequent_percentage = most_frequent_percentage,
+          sum_percentage = most_frequent_percentage
+        )
+      )
+      
+    } else if (is.numeric(column_data)) {
+      # For numeric columns: Calculate missing and zero percentages
+      missing_perc <- round(sum(is.na(column_data)) / length(column_data) * 100, 2)
+      zero_perc <- round(sum(column_data == 0, na.rm = TRUE) / length(column_data) * 100, 2)
+      
+      # Calculate sum of missing and zero percentages
+      sum_percentage <- missing_perc + zero_perc
+      
+      # Add imbalance information to the summary
+      imbalance_summary <- rbind(imbalance_summary,
+        data.frame(
+          column = col,
+          missing_percentage = missing_perc,
+          zero_percentage = zero_perc,
+          most_frequent_value = NA,
+          most_frequent_percentage = NA,
+          sum_percentage = sum_percentage
+        )
+      )
+    }
+  }
+  
+  # Sort the imbalance summary by sum_percentage in descending order
+  imbalance_summary <- imbalance_summary[order(-imbalance_summary$sum_percentage), ]
+  
+  # Convert column names to snake_case
+  names(imbalance_summary) <- gsub("([a-z])([A-Z])", "\\1_\\2", names(imbalance_summary))
+  names(imbalance_summary) <- tolower(names(imbalance_summary))
+  
+  # Return the imbalance summary
+  return(imbalance_summary)
+}
+```
+
+```{r initialize_test_and_train_datasets}
+# Read in the train and test datasets (test won't be used in the analysis)
+train <- fread("./data/application_train.csv", showProgress = TRUE, nThread = 4)
+test <- fread("./data/application_test.csv", showProgress = TRUE, nThread = 4)
+setkey(train, SK_ID_CURR)
+setkey(test, SK_ID_CURR)
+```
+
+---
+
+
+# Feature Engineering
+
+## Bureau Balance
+
+In this section, we explore a range of features derived from the Bureau Balance dataset, which tracks the status of previous loans and credit lines. The primary goal is to create new features that provide insights into the applicant's past credit behavior, focusing on delinquencies and payment patterns.
+
+The following metrics are calculated from the Bureau Balance data:
+
+1. **Count of Statuses**: A breakdown of how many times each status (e.g., "No Deliquency", "1 - Delay", "2 - Delay", etc.) occurred for each applicant.
+2. **Maximum Delinquency Reached**: The highest level of delinquency an applicant has experienced, providing an indication of their worst credit behavior.
+3. **Number of Months with Delinquencies**: The total count of months during which an applicant has shown delinquent behavior, offering a view of their overall credit risk over time.
+4. **Delinquency Ratio**: The proportion of months with delinquencies relative to the total number of months an applicant has had an active credit line.
+5. **Recent Delinquency**: A count of how many times an applicant was delinquent in the last six months, helping identify recent credit issues.
+6. **Was Ever Late?**: A binary feature that indicates whether an applicant has ever been late on a payment, serving as a broad indicator of creditworthiness.
+
+These features provide valuable insights into an applicant's credit history and help to enhance the predictive models for loan default risk. By focusing on the delinquency-related metrics, we aim to capture patterns that are strongly correlated with financial distress or default.
+
+```{r feature_engineering_bureau_balance}
+# Load the bureau and bureau_balance datasets
+bureau_bal <- fread("./data/bureau_balance.csv", showProgress = TRUE, nThread = 4)
+bureau <- fread("./data/bureau.csv", showProgress = TRUE, nThread = 4)
+
+# Set keys for efficient merging on SK_ID_BUREAU
+setkey(bureau_bal, SK_ID_BUREAU)
+setkey(bureau, SK_ID_BUREAU)
+
+# Display dataset summary and structure
+summary(bureau_bal)
+str(bureau_bal)
+skim(bureau_bal)
+
+# Count the statuses for each SK_ID_BUREAU
+bureau_status_counts <- bureau_bal[, .N, by = .(SK_ID_BUREAU, STATUS)] %>%
+  dcast(SK_ID_BUREAU ~ STATUS, value.var = "N", fill = 0)
+
+# Rename status columns for clarity
+setnames(
+  bureau_status_counts,
+  old = setdiff(names(bureau_status_counts), "SK_ID_BUREAU"), 
+  new = paste0("bureau_status_", setdiff(names(bureau_status_counts), "SK_ID_BUREAU"))
+)
+
+# Set key for merging status counts
+setkey(bureau_status_counts, SK_ID_BUREAU)
+
+# Merge status counts with the main bureau dataset
+bureau <- merge(bureau, bureau_status_counts, by = "SK_ID_BUREAU", all.x = TRUE)
+
+# Remove intermediate status counts dataset to free up memory
+rm(bureau_status_counts)
+
+# Calculate the maximum delinquency reached for each SK_ID_BUREAU
+bureau <- merge(
+  bureau,
+  bureau_bal[STATUS %in% c("1", "2", "3", "4", "5"), 
+             .(max_dpd = max(as.integer(STATUS))), 
+             by = SK_ID_BUREAU],
+  by = "SK_ID_BUREAU", 
+  all.x = TRUE
+)
+
+# Calculate the number of months with delinquencies for each SK_ID_BUREAU
+bureau <- merge(
+  bureau,
+  bureau_bal[STATUS %in% c("1", "2", "3", "4", "5"), 
+             .(months_delinquent = .N), 
+             by = SK_ID_BUREAU],
+  by = "SK_ID_BUREAU", 
+  all.x = TRUE
+)
+
+# Calculate the delinquency ratio for each SK_ID_BUREAU
+bureau <- merge(
+  bureau,
+  bureau_bal[, .(
+    total_months = .N,
+    delinq_months = sum(STATUS %in% c("1", "2", "3", "4", "5")),
+    delinq_ratio = sum(STATUS %in% c("1", "2", "3", "4", "5")) / .N
+  ), by = SK_ID_BUREAU],
+  by = "SK_ID_BUREAU", 
+  all.x = TRUE
+)
+
+# Calculate the recent delinquency count (within the last 6 months)
+bureau <- merge(
+  bureau,
+  bureau_bal[MONTHS_BALANCE >= -6 & STATUS %in% c("1", "2", "3", "4", "5"), 
+             .(recent_delinq_count = .N), 
+             by = SK_ID_BUREAU],
+  by = "SK_ID_BUREAU", 
+  all.x = TRUE
+)
+
+# Determine if the applicant was ever late (any delinquency status)
+bureau <- merge(
+  bureau,
+  bureau_bal[, .(ever_late = any(STATUS %in% c("1", "2", "3", "4", "5"))), 
+             by = SK_ID_BUREAU],
+  by = "SK_ID_BUREAU", 
+  all.x = TRUE
+)
+
+# Remove the bureau_balance dataset to free up memory
+rm(bureau_bal)
+
+# Perform garbage collection to clear unused memory
+invisible(gc())
+```
+
+## Bureau
+
+This section focuses on extracting and engineering features from the Bureau dataset, which contains detailed information about an applicant's credit history. These features are designed to provide a deeper understanding of the applicant’s current credit situation, as well as their overall relationship with various credit institutions.
+
+The following key metrics are derived from the Bureau dataset:
+
+1. **Total Number of Credits**: The total count of credits an applicant currently holds, offering an overview of their credit engagement.
+2. **Active vs. Closed Credits**: A breakdown of how many of the applicant’s credits are active, closed, or sold, which helps assess their ongoing credit activity and stability.
+3. **Summary of Credit Types**: A count of the different types of credit the applicant has, which provides insight into their credit profile diversity.
+4. **Total Debt and Credit Limits**: Metrics summarizing the applicant's total debt, available credit limits, and overdue amounts, giving a picture of their financial obligations and credit utilization.
+5. **Debt-to-Limit and Debt-to-Credit Ratios**: These ratios reveal how much debt the applicant holds relative to their credit limit and total credit, serving as key indicators of financial leverage and risk.
+6. **Average Time Since Credit Was Granted**: An average of how long it has been since the applicant's credits were initiated, which can indicate the applicant's credit maturity and history.
+7. **Aggregated Bureau Balance Features**: A combination of metrics from the Bureau Balance dataset, including the sum of various delinquency statuses and the total number of delinquent months, providing a comprehensive view of the applicant’s credit behavior over time.
+
+By analyzing these features, we aim to capture a more complete picture of the applicant's creditworthiness and their potential risk for loan default. These metrics are crucial for understanding both the depth and the nature of the applicant's financial obligations.
+
+```{r feature_engineering_bureau}
+# Display summary, structure, and skim the bureau dataset
+summary(bureau)
+str(bureau)
+skim(bureau)
+
+# Set key for efficient merging on SK_ID_CURR
+setkey(bureau, SK_ID_CURR)
+
+# Calculate the total number of credits for each SK_ID_CURR
+n_loans <- bureau[, .(n_loans = .N), by = SK_ID_CURR]
+merge_to_main_sets(n_loans)
+rm(n_loans)
+
+# Count the active vs. closed credit statuses for each SK_ID_CURR
+credit_status_counts <- bureau[, .N, by = .(SK_ID_CURR, CREDIT_ACTIVE)]
+credit_status_counts <- dcast(
+  credit_status_counts,
+  SK_ID_CURR ~ CREDIT_ACTIVE,
+  value.var = "N",
+  fill = 0
+)
+
+# Rename credit status columns and remove old ones
+credit_status_counts[, accounts_closed := Closed]
+credit_status_counts[, accounts_active := Active]
+credit_status_counts[, accounts_sold := Sold]
+credit_status_counts[, c("Closed", "Active", "Sold") := NULL]
+
+# Merge credit status counts with the main dataset
+merge_to_main_sets(credit_status_counts)
+rm(credit_status_counts)
+invisible(gc())
+
+# Count summary of credit types for each SK_ID_CURR
+credit_type_counts <- bureau[, .N, by = .(SK_ID_CURR, CREDIT_TYPE)]
+credit_type_counts <- dcast(
+  credit_type_counts,
+  SK_ID_CURR ~ CREDIT_TYPE,
+  value.var = "N",
+  fill = 0
+)
+
+# Merge credit type counts with the main dataset
+merge_to_main_sets(credit_type_counts)
+rm(credit_type_counts)
+invisible(gc())
+
+# Calculate total debt, credit limits, and overdue amounts for each SK_ID_CURR
+credit_summary <- bureau[, .(
+  total_debt = sum(AMT_CREDIT_SUM_DEBT, na.rm = TRUE),
+  total_limit = sum(AMT_CREDIT_SUM_LIMIT, na.rm = TRUE),
+  total_credit = sum(AMT_CREDIT_SUM, na.rm = TRUE),
+  total_overdue = sum(AMT_CREDIT_SUM_OVERDUE, na.rm = TRUE),
+  max_overdue = max(AMT_CREDIT_MAX_OVERDUE, na.rm = TRUE),
+  max_cb_day_overdue = max(CREDIT_DAY_OVERDUE, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Calculate debt-to-limit and debt-to-credit ratios
+credit_summary[, debt_to_limit_ratio := fifelse(total_limit > 0, total_debt / total_limit, NA_real_)]
+credit_summary[, debt_to_credit_ratio := fifelse(total_credit > 0, total_debt / total_credit, NA_real_)]
+
+# Merge credit summary with the main dataset
+merge_to_main_sets(credit_summary)
+rm(credit_summary)
+invisible(gc())
+
+# Calculate average time since credit was granted for each SK_ID_CURR
+avg_days_credit <- bureau[, .(avg_days_credit = abs(mean(DAYS_CREDIT, na.rm = TRUE))), by = SK_ID_CURR]
+
+# Merge average days since credit with the main dataset
+merge_to_main_sets(avg_days_credit)
+rm(avg_days_credit)
+invisible(gc())
+
+# Aggregate bureau balance features for each SK_ID_CURR
+bureau_bal_summary <- bureau[
+  , .(
+    sum_bureau_status_C = sum(bureau_status_C, na.rm = TRUE),
+    sum_bureau_status_X = sum(bureau_status_X, na.rm = TRUE),
+    sum_bureau_status_0 = sum(bureau_status_0, na.rm = TRUE),
+    sum_bureau_status_1 = sum(bureau_status_1, na.rm = TRUE),
+    sum_bureau_status_2 = sum(bureau_status_2, na.rm = TRUE),
+    sum_bureau_status_3 = sum(bureau_status_3, na.rm = TRUE),
+    sum_bureau_status_4 = sum(bureau_status_4, na.rm = TRUE),
+    sum_bureau_status_5 = sum(bureau_status_5, na.rm = TRUE),
+    sum_months_delinquent = sum(months_delinquent, na.rm = TRUE),
+    sum_total_months = sum(total_months, na.rm = TRUE),
+    avg_delinq_ratio = mean(delinq_ratio, na.rm = TRUE),
+    max_delinq_ratio = max(delinq_ratio, na.rm = TRUE),
+    sum_recent_delinq_count = sum(recent_delinq_count, na.rm = TRUE),
+    total_ever_late = sum(ever_late, na.rm = TRUE),
+    max_dpd = max(max_dpd, na.rm = TRUE)
+  ), 
+  by = SK_ID_CURR
+]
+
+# Merge bureau balance summary with the main dataset
+merge_to_main_sets(bureau_bal_summary)
+rm(bureau_bal_summary, bureau)
+invisible(gc())
+```
+
+## Credit Card Balance
+
+In this section, we focus on feature engineering using data from the Credit Card Balance dataset. These features provide detailed insights into an applicant's credit card usage and payment behaviors, which are key indicators of financial health and credit risk.
+
+The following key metrics are derived from the Credit Card Balance dataset:
+
+1. **Total Credit Balance**: The total outstanding balance on the applicant’s credit cards, reflecting the amount of debt they have accumulated.
+2. **Total Drawings and Payments**: A summary of the total amount drawn from credit cards (ATM, current, and POS withdrawals) and total payments made, shedding light on the applicant's spending and repayment patterns.
+3. **Debt-to-Credit Limit Ratio**: This ratio helps gauge the applicant's credit utilization by comparing the total balance to their available credit limit, which is a critical indicator of potential financial strain.
+4. **Number of Transactions/Drawings**: This metric tracks the total number of transactions or drawings made from the credit card, providing insight into the frequency of credit card usage.
+5. **Minimum Regular Payment**: The total minimum regular payment amount, showing how much the applicant is required to pay each month, which can highlight their ability to meet minimum obligations.
+6. **Days Past Due (DPD)**: The total number of days past due for the credit card account, which helps assess the applicant's history of late payments and overall payment behavior.
+7. **Default Status**: A binary indicator (1 or 0) reflecting whether the applicant has defaulted on any of their credit card payments, which is an important signal of creditworthiness.
+8. **Total Receivables (Unpaid Amounts)**: This metric captures the total amount that is owed and not yet paid, reflecting the applicant's current outstanding debt on the credit card.
+9. **Cumulative Instalment Maturity**: The total number of matured instalments, which provides an indication of the applicant’s longer-term repayment commitments and history.
+10. **Average Loan Duration (in Months)**: The average number of months the applicant has had credit card balances, indicating the maturity of their credit card usage.
+11. **Contract Status History**: This metric tracks the number of active and closed credit card contracts, offering insight into the applicant’s ongoing credit relationships.
+12. **Instalment Payment Ratio**: The ratio of actual payments made compared to the minimum required instalments, helping to understand the applicant’s commitment to repaying their debts beyond the minimum requirements.
+
+These metrics, when combined, help create a comprehensive view of an applicant’s behavior with respect to credit card usage and payment. By analyzing these features, we can better assess their financial stability and potential risk in terms of loan default.
+
+```{r feature_engineering_credit_card_balance}
+# Read in the credit card balance data
+cc_balance <- fread("./data/credit_card_balance.csv", showProgress = TRUE, nThread = 4)
+
+# Display the structure and summary statistics of the dataset
+str(cc_balance)
+skim(cc_balance)
+
+# Calculate the total credit balance and credit limit for each SK_ID_CURR
+credit_balance_summary <- cc_balance[, .(
+  total_cc_balance = sum(AMT_BALANCE, na.rm = TRUE),
+  total_cc_credit_limit = sum(AMT_CREDIT_LIMIT_ACTUAL, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the credit balance summary with the main dataset
+merge_to_main_sets(credit_balance_summary)
+
+# Calculate the total drawings and payments for each SK_ID_CURR
+drawings_payments_summary <- cc_balance[, .(
+  total_cc_drawings = sum(AMT_DRAWINGS_ATM_CURRENT + AMT_DRAWINGS_CURRENT + AMT_DRAWINGS_POS_CURRENT, na.rm = TRUE),
+  total_cc_payments = sum(AMT_PAYMENT_CURRENT + AMT_PAYMENT_TOTAL_CURRENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the drawings and payments summary with the main dataset
+merge_to_main_sets(drawings_payments_summary)
+rm(drawings_payments_summary)
+invisible(gc())
+
+# Calculate the debt-to-credit limit ratio for each SK_ID_CURR
+debt_to_credit_ratio <- credit_balance_summary[, .(
+  SK_ID_CURR,
+  total_cc_balance, 
+  total_cc_credit_limit,
+  cc_debt_to_credit_ratio = total_cc_balance / total_cc_credit_limit
+)]
+
+# Merge the debt-to-credit ratio with the main dataset
+merge_to_main_sets(debt_to_credit_ratio)
+rm(debt_to_credit_ratio, credit_balance_summary)
+invisible(gc())
+
+# Calculate the total number of transactions/drawings for each SK_ID_CURR
+drawings_count_summary <- cc_balance[, .(
+  total_cc_atm_drawings = sum(CNT_DRAWINGS_ATM_CURRENT, na.rm = TRUE),
+  total_cc_current_drawings = sum(CNT_DRAWINGS_CURRENT, na.rm = TRUE),
+  total_cc_pos_drawings = sum(CNT_DRAWINGS_POS_CURRENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the drawings count summary with the main dataset
+merge_to_main_sets(drawings_count_summary)
+rm(drawings_count_summary)
+invisible(gc())
+
+# Calculate the total minimum regular installment for each SK_ID_CURR
+instalment_summary <- cc_balance[, .(
+  total_cc_min_instalment = sum(AMT_INST_MIN_REGULARITY, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the installment summary with the main dataset
+merge_to_main_sets(instalment_summary)
+rm(instalment_summary)
+invisible(gc())
+
+# Calculate the total days past due (DPD) for each SK_ID_CURR
+dpd_summary <- cc_balance[, .(
+  total_cc_dpd = sum(SK_DPD, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the DPD summary with the main dataset
+merge_to_main_sets(dpd_summary)
+rm(dpd_summary)
+invisible(gc())
+
+# Check if there has been any default (1 if default, 0 if no default)
+default_summary <- cc_balance[, .(
+  cc_any_default = max(SK_DPD_DEF, na.rm = TRUE)  # 1 if any default, 0 if no default
+), by = SK_ID_CURR]
+
+# Merge the default summary with the main dataset
+merge_to_main_sets(default_summary)
+rm(default_summary)
+invisible(gc())
+
+# Calculate the total receivables (unpaid amounts) for each SK_ID_CURR
+receivable_summary <- cc_balance[, .(
+  total_cc_receivable = sum(AMT_TOTAL_RECEIVABLE, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the receivable summary with the main dataset
+merge_to_main_sets(receivable_summary)
+rm(receivable_summary)
+invisible(gc())
+
+# Calculate the total cumulative installment maturity for each SK_ID_CURR
+instalment_maturity_summary <- cc_balance[, .(
+  total_cc_instalments_matured = sum(CNT_INSTALMENT_MATURE_CUM, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the installment maturity summary with the main dataset
+merge_to_main_sets(instalment_maturity_summary)
+rm(instalment_maturity_summary)
+invisible(gc())
+
+# Calculate the average loan duration (in months) for each SK_ID_CURR
+loan_duration_summary <- cc_balance[, .(
+  avg_cc_months_balance = mean(MONTHS_BALANCE, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the loan duration summary with the main dataset
+merge_to_main_sets(loan_duration_summary)
+rm(loan_duration_summary)
+invisible(gc())
+
+# Count the active and closed contract statuses for each SK_ID_CURR
+contract_status_summary <- cc_balance[, .(
+  cc_active_contracts = sum(NAME_CONTRACT_STATUS == "Active", na.rm = TRUE),
+  cc_closed_contracts = sum(NAME_CONTRACT_STATUS == "Closed", na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the contract status summary with the main dataset
+merge_to_main_sets(contract_status_summary)
+rm(contract_status_summary)
+invisible(gc())
+
+# Calculate the installment payment ratio for each SK_ID_CURR
+payment_instalment_ratio <- cc_balance[, .(
+  cc_payment_instalment_ratio = sum(AMT_PAYMENT_CURRENT, na.rm = TRUE) / sum(AMT_INST_MIN_REGULARITY, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the payment installment ratio with the main dataset
+merge_to_main_sets(payment_instalment_ratio)
+rm(payment_instalment_ratio, cc_balance)
+invisible(gc())
+```
+
+## Installment Payments
+
+The Installment Payments dataset provides valuable insights into an applicant's behavior and history regarding installment-based debt repayments. Features derived from this dataset help evaluate the applicant’s timeliness in making payments, their ability to meet installment obligations, and their overall repayment consistency.
+
+Key metrics created from the Installment Payments data include:
+
+1. **Payment Timeliness Indicators**: This metric tracks the average delay in payments by calculating the difference between the scheduled installment date and the actual payment date. A higher average indicates a pattern of late payments, which could be a red flag for potential risk.
+  
+2. **Payment vs. Instalment Comparison**: This ratio compares the total amount paid versus the total installment amount. A higher ratio implies that the applicant is more likely to pay off the full installment on time, while a lower ratio might signal partial payments or financial struggles.
+
+3. **Missed or Partial Payments**: This feature identifies how many payments were made in full versus partial payments. An applicant with more partial payments may indicate difficulties in meeting the full financial commitment.
+
+4. **Number of Installments Made**: This metric tracks the total number of installments the applicant has made. A high count of installments may signal a long history of installment payments, which can offer insight into their overall financial management.
+
+5. **Late Payment Count**: This metric counts the number of instances where payments were made past the due date. Frequent late payments can signal poor financial habits and increase the risk of default.
+
+6. **Average Installment Amount**: The average amount of money the applicant is required to pay per installment. This figure can help assess the financial burden an applicant is facing on average, and it can be useful for understanding their cash flow and repayment capacity.
+
+These features provide a comprehensive view of how an applicant manages their installment payments and offer strong predictive signals for financial stability and creditworthiness. By analyzing these indicators, we can better understand an applicant's payment behavior and the likelihood of timely repayments in the future.
+
+```{r feature_engineering_installment_payments}
+# Read in the installment payments data
+inst_payments <- fread("./data/installments_payments.csv", showProgress = TRUE, nThread = 4)
+
+# Display the structure and summary statistics of the dataset
+summary(inst_payments)
+str(inst_payments)
+skim(inst_payments)
+
+# Calculate average days late for payment entries
+avg_days_diff <- inst_payments[, .(
+  avg_days_late = mean(DAYS_ENTRY_PAYMENT - DAYS_INSTALMENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the average days late with the main dataset
+merge_to_main_sets(avg_days_diff)
+rm(avg_days_diff)
+invisible(gc())
+
+# Calculate the total installment and total paid amounts, and the payment-to-installment ratio
+payment_ratios <- inst_payments[, .(
+  total_instalment = sum(AMT_INSTALMENT, na.rm = TRUE),
+  total_paid = sum(AMT_PAYMENT, na.rm = TRUE),
+  payment_ratio = sum(AMT_PAYMENT, na.rm = TRUE) / sum(AMT_INSTALMENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the payment ratio summary with the main dataset
+merge_to_main_sets(payment_ratios)
+rm(payment_ratios)
+invisible(gc())
+
+# Calculate the number of partial and full payments for each SK_ID_CURR
+partial_payment_summary <- inst_payments[, .(
+  num_partial_payments = sum(AMT_PAYMENT < AMT_INSTALMENT, na.rm = TRUE),
+  num_full_payments = sum(AMT_PAYMENT >= AMT_INSTALMENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the partial payment summary with the main dataset
+merge_to_main_sets(partial_payment_summary)
+rm(partial_payment_summary)
+invisible(gc())
+
+# Count the number of installments made for each SK_ID_CURR
+instalment_count <- inst_payments[, .(
+  num_instalments = .N
+), by = SK_ID_CURR]
+
+# Merge the installment count with the main dataset
+merge_to_main_sets(instalment_count)
+rm(instalment_count)
+invisible(gc())
+
+# Count the number of late payments for each SK_ID_CURR
+late_payments <- inst_payments[, .(
+  num_late = sum((DAYS_ENTRY_PAYMENT - DAYS_INSTALMENT) > 0, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the late payments summary with the main dataset
+merge_to_main_sets(late_payments)
+rm(late_payments)
+invisible(gc())
+
+# Calculate the average installment amount for each SK_ID_CURR
+avg_instalment <- inst_payments[, .(
+  avg_instalment_amt = mean(AMT_INSTALMENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the average installment summary with the main dataset
+merge_to_main_sets(avg_instalment)
+rm(avg_instalment, inst_payments)
+invisible(gc())
+```
+
+## POS/Cash Balance
+
+The POS/Cash Balance dataset offers insights into an applicant’s behavior with respect to point-of-sale (POS) transactions and cash advances. By evaluating an applicant's activity in this domain, we gain a better understanding of their spending patterns, repayment behavior, and overall financial stability. These metrics are essential for assessing the likelihood of future defaults and understanding the applicant's management of credit.
+
+Key features derived from the POS/Cash Balance data include:
+
+1. **Average Remaining Installments**: This metric provides the average number of installments left on the applicant's ongoing POS/cash contracts. A higher number of remaining installments may indicate longer-term financial commitments that the applicant needs to meet.
+
+2. **Total Installments (Past + Future)**: The total number of installments (both paid and future) gives insight into the overall volume of debt an applicant is currently managing across POS/cash contracts.
+
+3. **Total Future Installments**: This feature specifically tracks the total number of future installments that the applicant is obligated to pay. It’s a key indicator of the applicant’s future financial obligations.
+
+4. **Default History Indicators**: This metric flags any prior defaults or delinquencies associated with the POS/cash balance, helping us understand if the applicant has had any history of overdue payments. It also tracks whether the applicant has defaulted on any POS-related loans in the past.
+
+5. **Count of Active vs. Closed Contracts**: This feature distinguishes between active and closed contracts, offering insights into the applicant's current financial commitments. A higher number of active contracts could imply an ongoing reliance on credit.
+
+6. **Average DPD (Days Past Due)**: The average number of days the applicant has been late on their POS/cash installments. This is a critical metric for assessing the applicant's reliability and their likelihood of future payment delays.
+
+7. **Months on Book (Loan Age Indicator)**: This indicates the length of time the applicant has had their POS/cash account active. A longer account age may reflect an established history with the lender, which could offer insight into their repayment behavior over time.
+
+These features provide valuable insights into the applicant's interaction with POS and cash advances. By analyzing this data, we can assess the applicant’s creditworthiness and ability to manage multiple financial commitments, offering predictive power in the risk assessment process.
+
+```{r feature_engineering_pos_cash_balance}
+# Read in the POS Cash balance data
+pos_cash_balance <- fread("./data/POS_CASH_balance.csv", showProgress = TRUE, nThread = 4)
+
+# Display the structure and summary statistics of the dataset
+summary(pos_cash_balance)
+str(pos_cash_balance)
+skim(pos_cash_balance)
+
+# Calculate average remaining installments for each SK_ID_CURR
+avg_future_inst <- pos_cash_balance[, .(
+  avg_p_c_instalments_remaining = mean(CNT_INSTALMENT_FUTURE, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the average remaining installments with the main dataset
+merge_to_main_sets(avg_future_inst)
+rm(avg_future_inst)
+invisible(gc())
+
+# Calculate total installments (past + future) for each SK_ID_CURR
+total_instalments <- pos_cash_balance[, .(
+  total_p_c_instalments = sum(CNT_INSTALMENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the total installments summary with the main dataset
+merge_to_main_sets(total_instalments)
+rm(total_instalments)
+invisible(gc())
+
+# Calculate total future installments for each SK_ID_CURR
+future_instalments <- pos_cash_balance[, .(
+  total_p_c_future_instalments = sum(CNT_INSTALMENT_FUTURE, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the future installments summary with the main dataset
+merge_to_main_sets(future_instalments)
+rm(future_instalments)
+invisible(gc())
+
+# Generate flags for any DPD (Days Past Due) or default
+dpd_flags <- pos_cash_balance[, .(
+  any_p_c_dpd = as.integer(any(SK_DPD > 0, na.rm = TRUE)),
+  any_p_c_dpd_def = as.integer(any(SK_DPD_DEF > 0, na.rm = TRUE))
+), by = SK_ID_CURR]
+
+# Merge the DPD flags with the main dataset
+merge_to_main_sets(dpd_flags)
+rm(dpd_flags)
+invisible(gc())
+
+# Count the number of active and closed contracts for each SK_ID_CURR
+contract_status_summary <- pos_cash_balance[, .(
+  num_p_c_active_contracts = sum(NAME_CONTRACT_STATUS == "Active", na.rm = TRUE),
+  num_p_c_closed_contracts = sum(NAME_CONTRACT_STATUS == "Completed", na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the contract status summary with the main dataset
+merge_to_main_sets(contract_status_summary)
+rm(contract_status_summary)
+invisible(gc())
+
+# Calculate average and maximum DPD (Days Past Due) for each SK_ID_CURR
+dpd_summary <- pos_cash_balance[, .(
+  avg_p_c_dpd = mean(SK_DPD, na.rm = TRUE),
+  max_p_c_dpd = max(SK_DPD, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the DPD summary with the main dataset
+merge_to_main_sets(dpd_summary)
+rm(dpd_summary)
+invisible(gc())
+
+# Calculate loan age indicators: average months on book and earliest month for each SK_ID_CURR
+loan_age_summary <- pos_cash_balance[, .(
+  avg_p_c_months_balance = mean(MONTHS_BALANCE, na.rm = TRUE),
+  p_c_earliest_month = min(MONTHS_BALANCE, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge the loan age summary with the main dataset
+merge_to_main_sets(loan_age_summary)
+rm(loan_age_summary, pos_cash_balance)
+invisible(gc())
+```
+
+## Previous Application
+
+The "Previous Application" dataset provides insights into the applicant's history with previous loan applications, which is a crucial factor in predicting future creditworthiness. By analyzing past behavior, including application outcomes, loan amounts, and payment terms, we can gain a deeper understanding of how applicants have managed their credit in the past. This information helps assess the applicant's likelihood of repaying new loans and understanding their financial patterns.
+
+Key features derived from the Previous Application data include:
+
+1. **Average and Total Loan Amounts**: This section highlights the average loan amounts applied for and credited, as well as the total credit applied for across all previous loan applications. It also tracks the total number of previous loan applications, providing a broader view of the applicant's history with credit.
+
+2. **Down Payment and Annuity Ratios**: Features here include the average down payment and annuity amounts, along with the average ratio of annuity to credit. These metrics help evaluate the applicant's ability to meet financial obligations and their commitment to paying back credit over time.
+
+3. **Contract Status Flags**: This feature tracks the status of previous loan applications, including the number of approved, refused, and completed contracts. It helps assess the applicant's approval rate and the reasons behind any declined applications.
+
+4. **Application Timing Features**: This includes the most common weekday for application submissions and the average hour of the day when applications were processed. These temporal features can provide insights into applicant behavior and patterns related to application submission.
+
+5. **Application Recency**: These metrics track the recency of the applicant’s previous loan applications. It includes the number of days since the last application was made and the average number of days taken to reach a decision, offering insight into how frequently the applicant applies for credit.
+
+6. **Interest Rate Metrics**: This includes the average interest rates applied to previous loan applications, both for primary and privileged rates. These features help assess the applicant's financial burden and the lending terms they are typically offered.
+
+7. **Credit Duration & Payment Term**: Features like the average number of days to loan termination and the average number of payments help evaluate the loan terms and the applicant's historical ability to adhere to repayment schedules.
+
+8. **Product and Channel Diversity**: This section tracks the diversity of the applicant’s previous loan products and application channels, providing insights into their interaction with various credit types and distribution platforms.
+
+By analyzing these features, we can create a comprehensive profile of the applicant’s previous borrowing behavior, which is crucial for understanding their current creditworthiness and predicting the likelihood of future defaults.
+
+```{r feature_engineering_previous_application}
+# Load the previous application dataset
+prev_app <- fread("./data/previous_application.csv", showProgress = TRUE, nThread = 4)
+
+# Display dataset summary and structure
+summary(prev_app)
+str(prev_app)
+skim(prev_app)
+
+# Calculate average and total loan amounts
+loan_amounts <- prev_app[, .(
+  prev_avg_amt_application = mean(AMT_APPLICATION, na.rm = TRUE),
+  prev_avg_amt_credit = mean(AMT_CREDIT, na.rm = TRUE),
+  prev_total_credit_applied = sum(AMT_CREDIT, na.rm = TRUE),
+  prev_total_loans = .N
+), by = SK_ID_CURR]
+
+# Merge loan amounts with the main dataset
+merge_to_main_sets(loan_amounts)
+rm(loan_amounts)
+invisible(gc())
+
+# Calculate down payment and annuity ratios
+downpayment_annuity <- prev_app[, .(
+  prev_avg_amt_down_payment = mean(AMT_DOWN_PAYMENT, na.rm = TRUE),
+  prev_avg_amt_annuity = mean(AMT_ANNUITY, na.rm = TRUE),
+  prev_avg_annuity_to_credit_ratio = mean(AMT_ANNUITY / AMT_CREDIT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge down payment and annuity ratios with the main dataset
+merge_to_main_sets(downpayment_annuity)
+rm(downpayment_annuity)
+invisible(gc())
+
+# Calculate contract status flags
+contract_status <- prev_app[, .(
+  prev_num_approved = sum(NAME_CONTRACT_STATUS == "Approved", na.rm = TRUE),
+  prev_num_refused = sum(NAME_CONTRACT_STATUS == "Refused", na.rm = TRUE),
+  prev_num_completed = sum(NAME_CONTRACT_STATUS == "Completed", na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge contract status data with the main dataset
+merge_to_main_sets(contract_status)
+rm(contract_status)
+invisible(gc())
+
+# Calculate application timing features (weekday and hour)
+time_features <- prev_app[, .(
+  prev_most_common_weekday = names(sort(table(WEEKDAY_APPR_PROCESS_START), decreasing = TRUE))[1],
+  prev_avg_hour = mean(HOUR_APPR_PROCESS_START, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge application timing features with the main dataset
+merge_to_main_sets(time_features)
+rm(time_features)
+invisible(gc())
+
+# Calculate application recency features (last application days ago and average days for decision)
+recency <- prev_app[, .(
+  prev_last_app_days_ago = max(DAYS_DECISION, na.rm = TRUE),
+  prev_avg_days_decision = mean(DAYS_DECISION, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge application recency features with the main dataset
+merge_to_main_sets(recency)
+rm(recency)
+invisible(gc())
+
+# Calculate interest rate metrics
+interest_rates <- prev_app[, .(
+  prev_avg_interest_primary = mean(RATE_INTEREST_PRIMARY, na.rm = TRUE),
+  prev_avg_interest_privileged = mean(RATE_INTEREST_PRIVILEGED, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge interest rates data with the main dataset
+merge_to_main_sets(interest_rates)
+rm(interest_rates)
+invisible(gc())
+
+# Calculate credit duration and payment term
+loan_terms <- prev_app[, .(
+  prev_avg_days_termination = mean(DAYS_TERMINATION, na.rm = TRUE),
+  prev_avg_cnt_payment = mean(CNT_PAYMENT, na.rm = TRUE)
+), by = SK_ID_CURR]
+
+# Merge loan terms data with the main dataset
+merge_to_main_sets(loan_terms)
+rm(loan_terms)
+invisible(gc())
+
+# Calculate product and channel diversity
+diversity <- prev_app[, .(
+  prev_num_unique_contract_types = uniqueN(NAME_CONTRACT_TYPE),
+  prev_num_unique_channels = uniqueN(CHANNEL_TYPE),
+  prev_num_unique_products = uniqueN(PRODUCT_COMBINATION)
+), by = SK_ID_CURR]
+
+# Merge product and channel diversity data with the main dataset
+merge_to_main_sets(diversity)
+rm(diversity, prev_app)
+invisible(gc())
+```
+
+---
+
+
+# Data Follow-up Cleaning
+
+After engineering the various features from the original application data, it's crucial to revisit the dataset for further cleaning and refinement. This section ensures that the combined training dataset, which now includes both the original features and the newly engineered ones, is well-prepared for model development. The cleaning process focuses on resolving data inconsistencies, handling missing values, addressing outliers, and eliminating irrelevant or redundant features.
+
+Key steps in this section include:
+
+1. **Column Name Standardization**: The column names of both the training and test datasets are updated to maintain uniformity. This ensures that the datasets are aligned and avoids potential errors during model training or evaluation.
+
+2. **Outlier Handling and Transformation**: Features such as the number of months or days in certain variables (e.g., `avg_cc_months_balance`, `avg_days_late`, etc.) are transformed to be non-negative. This ensures that the data aligns with logical expectations and prevents negative values from distorting model predictions. Additionally, three different forms of logical categories have been unitfied to the same format to ensure they can be evaluate properly.
+
+3. **Missing Data Imputation**: The external source scores (`ext_source_1`, `ext_source_2`, `ext_source_3`) are imputed with the median values to handle missing data and ensure that no important information is lost due to missing values. Other numerical values from the dataset are often zero when the value is not set so they've had this value imputed instead.
+
+4. **Removal of Low-Impact Features**: Predictors that either have a high percentage of missing data or a high percentage of zero values are removed to reduce noise and improve model efficiency. Features such as certain document flags and loan types are removed due to their high missing or zero percentages.
+
+5. **Feature Selection**: Factors with limited variance, such as those where most observations belong to a single category (e.g., mobile flags or region-related flags), are removed. These features do not provide much useful information for classification models.
+
+6. **Data Imbalance Check**: The dataset is reviewed for imbalances across features. In cases where imbalance is detected, strategies such as data transformation or segment-specific analysis may be considered in the future to improve model performance.
+
+The ultimate goal of this section is to produce a clean and well-structured dataset that is suitable for further exploration during this EDA phase. By addressing these data quality issues, we ensure that the dataset is ready for deeper investigation, which will help uncover important patterns and insights before moving on to model development.
+
+***Note:** Some of the features engineered earlier had limited presence in the dataset, which may impact their usefulness. In the future, a more detailed class-based analysis could be valuable to identify specific segments where certain features might be more relevant, thus improving the overall model development process.*
+
+```{r train_set_review}
+# Update column names for train and test datasets for consistency and order
+invisible(
+  train %>%
+    reformat_column_labels() %>%
+    order_columns()
+)
+
+invisible(
+  test %>%
+    reformat_column_labels() %>%
+    order_columns()
+)
+
+# Display structure and summary statistics for the train dataset
+str(train)
+skim(train)
+```
+
+```{r data_followup_cleaning}
+# Create a copy of the train dataset and convert it to a data frame
+temp_train <- copy(train)
+temp_train <- as.data.frame(temp_train)
+
+# Check mean and median of external source scores to assess skew and central tendency
+temp_train %>%
+  select(ext_source_1, ext_source_2, ext_source_3) %>%
+  summarise(
+    s1_mean = mean(ext_source_1, na.rm = TRUE),
+    s1_median = median(ext_source_1, na.rm = TRUE),
+    s2_mean = mean(ext_source_2, na.rm = TRUE),
+    s2_median = median(ext_source_2, na.rm = TRUE),
+    s3_mean = mean(ext_source_3, na.rm = TRUE),
+    s3_median = median(ext_source_3, na.rm = TRUE)
+  )
+
+# Reshape external source data for visualization of density distribution
+ext_source_temp <- temp_train %>%
+  select(ext_source_1, ext_source_2, ext_source_3) %>%
+  pivot_longer(cols = everything(), names_to = "source", values_to = "value")
+
+# Plot density distribution of external sources
+ggplot(ext_source_temp, aes(x = value, color = source)) +
+  geom_density(na.rm = TRUE) +
+  labs(
+    title = "Density Plot of External Sources",
+    x = "Value",
+    y = "Density",
+    color = "Source"
+  ) +
+  theme_minimal()
+
+# Display imbalance summary for the temp_train dataset
+datatable(validate_imbalances(temp_train, threshold = 50))
+
+# Clean and adjust specific columns in the dataset
+temp_train <- temp_train %>%
+  mutate(
+    ext_source_1 = ifelse(is.na(ext_source_1), median(ext_source_1, na.rm = TRUE), ext_source_1),
+    ext_source_2 = ifelse(is.na(ext_source_2), median(ext_source_2, na.rm = TRUE), ext_source_2),
+    ext_source_3 = ifelse(is.na(ext_source_3), median(ext_source_3, na.rm = TRUE), ext_source_3),
+    avg_cc_months_balance = abs(avg_cc_months_balance),
+    avg_days_late = abs(avg_days_late),
+    avg_p_c_months_balance = abs(avg_p_c_months_balance),
+    days_birth = abs(days_birth),
+    days_employed = abs(days_employed),
+    days_id_publish = abs(days_id_publish),
+    days_last_phone_change = abs(days_last_phone_change),
+    days_registration = abs(days_registration),
+    prev_avg_days_decision = abs(prev_avg_days_decision),
+    prev_avg_days_termination = abs(prev_avg_days_termination),
+    prev_last_app_days_ago = abs(prev_last_app_days_ago)
+  ) %>%
+  select(
+    -flag_document_10,
+    -flag_document_12,
+    -flag_document_2,
+    -flag_document_4,
+    -flag_document_7,
+    -flag_document_17,
+    -flag_document_21,
+    -flag_document_20,
+    -flag_document_19,
+    -flag_document_15,
+    -flag_document_14,
+    -flag_document_13,
+    -flag_document_11,
+    -flag_document_9,
+    -flag_document_18,
+    -flag_document_16,
+    -flag_document_5,
+    -cash_loan_nonearmarked,
+    -loan_for_the_purchase_of_equipment,
+    -loan_for_working_capital_replenishment,
+    -unknown_type_of_loan,
+    -another_type_of_loan,
+    -loan_for_business_development,
+    -amt_req_credit_bureau_day,
+    -amt_req_credit_bureau_hour,
+    -sum_bureau_status_4,
+    -sum_bureau_status_5,
+    -sum_bureau_status_3,
+    -total_overdue,
+    -max_cb_day_overdue,
+    -microloan,
+    -prev_avg_interest_primary,
+    -prev_avg_interest_privileged,
+    -accounts_sold,
+    -sum_bureau_status_2,
+    -amt_req_credit_bureau_week,
+    -sum_recent_delinq_count,
+    -mortgage,
+    -cc_any_default,
+    -total_cc_dpd,
+    -car_loan,
+    -def_60_cnt_social_circle,
+    -sum_bureau_status_1,
+    -flag_mobil,
+    -flag_cont_mobile,
+    -reg_region_not_live_region,
+    -live_region_not_work_region,
+    -reg_region_not_work_region,
+    -prev_num_completed,
+    -flag_email,
+    -reg_city_not_live_city,
+    -flag_document_8,
+    -flag_document_6,
+    -emergencystate_mode,
+    -real_estate_loan,
+    -bad_debt,
+    -mobile_operator_loan,
+    -loan_for_purchase_of_shares_margin_lending,
+    -interbank_credit,
+    -cc_closed_contracts
+  )
+
+# Perform quick cleaning on the dataset
+temp_train <- temp_train %>%
+  quick_clean()
+
+# Convert temp_train back to a data.table for faster operations
+setDT(temp_train)
+
+# Display imbalance summary again after cleaning
+datatable(validate_imbalances(temp_train, threshold = 50))
+```
+
+Changes:
+
+- Inverted day counts to be non-negative
+  Examples: avg_cc_months_balance, avg_days_late, avg_p_c_months_balance
+- Updated ext_source scores to the median of each predictor
+- Removed predictors with the highest missing_percentage
+  Examples: flag_document_10, flag_document_12, flag_document_2
+- Removed predictors with the highest zero_percentage
+  Examples: cash_loan_nonearmarked, loan_for_the_purchase_of_equipment, loan_for_working_capital_replenishment
+- Removed factor predictors with mostly the same category assigned
+  Examples: flag_mobil, flag_cont_mobile, reg_region_not_live_region
+
+NOTE: We notice some of the column generated in the above feature engineering ended up not having enough presence in the data to be helpful for full set evaluation. In future, it may be beneficial to expand this introductory analysis with a segmented class analysis. This could also enhance future model development as models can be produced for independent segments improving their ability to classify the provided data.
+
+---
+
+
+# Data Evaluation
+
+## Class Balance Analysis
+
+```{r}
+# Prepare a data subset to evaluate any class imbalance in the target variable
+target_summary <- temp_train %>%
+  select(target) %>%
+  count(target) %>%
+  mutate(
+    # Calculate the proportion of each class in the target variable
+    proportion = round((n / sum(n)) * 100, 2),
+    
+    # Identify the majority class based on its proportion
+    majority_class = if_else((n / sum(n)) >= 0.5, TRUE, FALSE)
+  )
+
+# Plot the class proportions to evaluate class distribution
+ggplot(target_summary, aes(x = as.factor(target), y = proportion)) +
+  geom_bar(
+    stat = "identity",  # Use bar heights to represent data values
+    fill = "steelblue",  # Color the bars
+    color = "steelblue",  # Bar border color
+    alpha = 0.6          # Set transparency for the bars
+  ) +
+  labs(
+    title = "Loan Repayment vs. Default",  # Plot title
+    x = "Applicant Defaulted",            # X-axis label
+    y = "Proportion (%)"                   # Y-axis label
+  ) +
+  theme_minimal()  # Minimal theme for a clean plot appearance
+```
+
+Our assessment of the target variable indicates a significant class imbalance, with the majority class skewed toward non-default outcomes. If left unaddressed, this imbalance could cause models to bias heavily toward the majority class, resulting in misleading performance metrics and making it difficult to accurately evaluate and compare models. To mitigate this, we will consider strategies such as random sampling, oversampling the minority class, or undersampling the majority class during data preparation.
+
+## Application Reception Analysis
+
+```{r}
+# Calculate the proportion of items by weekday and plot the distribution
+temp_train %>%
+  count(prev_most_common_weekday) %>%
+  mutate(
+    prev_most_common_weekday = str_sub(prev_most_common_weekday, 1, 3),
+    proportion = n / sum(n)
+  ) %>%
+  ggplot(aes(x = prev_most_common_weekday, y = proportion)) +
+  geom_col(
+    fill = "steelblue",
+    color = "steelblue",
+    alpha = 0.6
+  ) +
+  labs(
+    title = "Proportion of Items by Weekday",
+    x = "Weekday",
+    y = "Proportion"
+  ) +
+  theme_minimal()
+
+# Prepare data for the histogram of the application process hour
+processing_hour_temp <- temp_train %>%
+  select(hour_appr_process_start) %>%
+  pivot_longer(cols = everything(), names_to = "source", values_to = "value")
+
+ggplot(processing_hour_temp, aes(x = value)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 binwidth = 1, 
+                 color = "steelblue", 
+                 fill = "steelblue", 
+                 alpha = 0.6) +
+  labs(
+    title = "Density Plot of Application Hour",
+    x = "Hour of Application",
+    y = "Density"
+  ) +
+  theme_minimal()
+```
+
+An analysis of the distribution of loan applications across weekdays and hours of the day reveals that most applications are submitted on Friday, Saturday, and Monday, typically between 7:30 AM and 3:00 PM. This information can be valuable for optimizing marketing campaigns, such as timing promotional offers, targeted outreach, and loan product advertisements to align with periods of higher customer engagement.
+
+## Amount Distributions Analysis
+
+```{r}
+# Reshape data into long format for grouped boxplot of loan-related predictors
+temp_train_long <- temp_train %>%
+  select(amt_annuity, amt_credit, amt_goods_price, amt_income_total) %>%
+  pivot_longer(cols = everything(), names_to = "predictor", values_to = "value")
+
+# Boxplot for the selected loan-related predictors
+ggplot(temp_train_long, aes(x = predictor, y = value, fill = predictor)) +
+  geom_boxplot(color = "steelblue", fill = "steelblue", alpha = 0.6) +  # Apply color theme
+  labs(title = "Boxplot for Loan-related Predictors",
+       x = "Predictor",
+       y = "Value") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+
+# Filter out records where amt_income_total is an extreme outlier
+temp_train_filtered <- temp_train %>%
+  filter(amt_income_total < 6.0e+07)
+
+# Reshape the filtered data into long format for grouped boxplot
+temp_train_long_filtered <- temp_train_filtered %>%
+  select(amt_annuity, amt_credit, amt_goods_price, amt_income_total) %>%
+  pivot_longer(cols = everything(), names_to = "predictor", values_to = "value")
+
+# Boxplot for the selected loan-related predictors after filtering out outliers
+ggplot(temp_train_long_filtered, aes(x = predictor, y = value, fill = predictor)) +
+  geom_boxplot(color = "steelblue", fill = "steelblue", alpha = 0.6) +  # Apply color theme
+  labs(title = "Boxplot for Loan-related Predictors (Outlier Filtered)",
+       x = "Predictor",
+       y = "Value") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+```
+
+Based on our analysis of the loan amounts and applicant income, we observed a significant outlier in applicant income. This outlier has been removed in the second plot to allow for better visualization and comparison of the remaining amounts. Despite the removal of the outlier, a broad range of applicant income values remains, with the majority falling below the average values for the credit amounts provided and the cost of goods purchased. This suggests that the majority of applicants have relatively lower incomes in relation to the loan amounts they are seeking. The loan annuity, however, is less informative in this plot as it is overshadowed by the distributions of the other amounts.
+
+```{r}
+# Reshape the data into long format for grouped boxplot (only for amt_annuity)
+temp_train_long_filtered_amt_annuity <- temp_train_filtered %>%
+  select(amt_annuity) %>%
+  pivot_longer(cols = everything(), names_to = "predictor", values_to = "value")
+
+# Boxplot for amt_annuity after filtering
+ggplot(temp_train_long_filtered_amt_annuity, aes(x = predictor, y = value, fill = predictor)) +
+  geom_boxplot(color = "steelblue", fill = "steelblue", alpha = 0.6) +  # Apply color theme
+  labs(title = "Boxplot for amt_annuity (Outlier Filtered)",
+       x = "Predictor",
+       y = "Value") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+```
+
+The third plot, which focuses solely on loan annuity, provides additional insights. While it shows that many applications have annuity amounts exceeding $50,000, the vast majority of loans have annuity values below that threshold. This highlights that while some applicants may be seeking larger loan amounts, most loans are issued with more modest annuity values.
+
+It is likely that the loans with more modest annuity values are also related to different types of loans. For instance, a mortgage loan would typically have a significantly higher annuity value compared to a simple personal loan, which would explain the variation in the distribution of annuity values. This suggests that the type of loan could be an important factor influencing the size of the annuity amount, and further segmentation by loan type could provide deeper insights into the loan issuance patterns.
+
+```{r}
+# Filter dataset and pivot data for the selected financial columns and contract type
+temp_train_filtered <- temp_train %>%
+  filter(amt_income_total < 6.0e+07) %>%
+  select(amt_annuity, amt_credit, amt_goods_price, amt_income_total, name_contract_type) %>%
+  pivot_longer(cols = c(amt_annuity, amt_credit, amt_goods_price, amt_income_total), 
+               names_to = "predictor", 
+               values_to = "value")
+
+# Create a boxplot for loan annuity, broken up by contract type
+ggplot(temp_train_filtered[temp_train_filtered$predictor == "amt_annuity", ], aes(x = name_contract_type, y = value, fill = name_contract_type)) +
+  geom_boxplot(color = "steelblue", alpha = 0.6) +
+  labs(title = "Boxplot for Loan Annuity by Contract Type",
+       x = "Contract Type",
+       y = "Loan Annuity Value") +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+```
+
+The forth plot further confirms our hypothesis regarding loan annuity distributions across contract types. It clearly shows that revolving loans tend to have fundamentally lower annuity values compared to cash loans, which aligns with the expected behavior: revolving loans often have more flexible repayment terms, leading to smaller, more manageable monthly payments. However, it's important to note that this plot only distinguishes between revolving and cash loans. In reality, cash loans encompass a range of different loan types, and their annuity values can vary significantly. For instance, the annuity values for mortgage loans or business loans would likely be higher compared to personal cash loans, highlighting the need to consider further segmentation within the cash loan category. Thus, while the current visualization gives useful insights, additional categorization of loan types within the cash loan group could provide a more granular understanding of annuity distributions.
+
+```{r}
+# Simplify dataset to include only the contract type and target columns
+temp_train_filtered <- temp_train %>%
+  select(name_contract_type, target)
+
+# Create a bar plot to visualize the proportion of target by contract type with custom colors
+ggplot(temp_train_filtered, aes(x = name_contract_type, fill = as.factor(target))) +
+  geom_bar(position = "fill", color = "steelblue", alpha = 0.6) +
+  scale_fill_manual(values = c("No" = "steelblue", "Yes" = "pink")) +  # Set custom colors for target values
+  labs(
+    title = "Proportion of Target by Contract Type",
+    x = "Contract Type",
+    y = "Proportion",
+    fill = "Target"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+```
+
+In our next plot, we have visualized the default rate by contract type, and it appears that cash loans have a higher default rate compared to revolving loans. This observation is an important consideration for our future loan default risk model. As previously mentioned, segmenting the data could enhance model performance, and the distinction between cash loans and revolving loans could be a useful segmentation. By training separate models for different segments, such as this one, we can better capture the unique risk profiles associated with each loan type, ultimately leading to more accurate predictions of loan defaults.
+
+This information is highly valuable for Home Credit in understanding the distribution of loan annuities across different contract types. By identifying how annuity values vary between revolving loans and cash loans, and considering the potential impact of various loan types within the cash loan category, Home Credit can refine their loan offerings and better assess the financial capacity of applicants. Additionally, as we've observed in the previous analysis, cash loans tend to have a higher default rate than revolving loans, making it an important factor to consider when segmenting data for future model development. For the loan default risk model, this insight is crucial, as the loan annuity amount is likely to be a key feature. Loans with higher annuities may correlate with higher risk, particularly if the applicant’s income does not support the repayment terms. Incorporating these insights—such as distinguishing between revolving and cash loans, and considering loan types within each category—will help improve the model’s accuracy and enable more tailored and informed lending decisions.
+
+## Applicant Analysis
+
+```{r warning=FALSE}
+# Create age categories based on 'days_birth' and add 'age_group' column
+temp_train <- temp_train %>%
+  mutate(age = floor(abs(days_birth) / 365),  # Convert days to age
+         age_group = case_when(
+           age < 20 ~ "Under 20",
+           age >= 20 & age < 30 ~ "20-29",
+           age >= 30 & age < 40 ~ "30-39",
+           age >= 40 & age < 50 ~ "40-49",
+           age >= 50 & age < 60 ~ "50-59",
+           age >= 60 ~ "60+"  # Define age categories
+         ))
+
+# Convert 'age_group' to a factor with a specific order of levels
+temp_train <- temp_train %>%
+  mutate(age_group = factor(age_group, levels = c("Under 20", "20-29", "30-39", "40-49", "50-59", "60+")))
+
+# Plotting age distribution by 'age_group' with density values
+ggplot(temp_train, aes(x = age, fill = age_group)) +
+  geom_histogram(aes(y = after_stat(density)), 
+                 binwidth = 1, 
+                 color = "steelblue", 
+                 alpha = 0.6) +
+  labs(
+    title = "Density Plot of Applicant Ages",
+    x = "Age of Applicant",
+    y = "Density",
+    fill = "Age Group"
+  ) +
+  theme_minimal() +
+  scale_fill_manual(values = c("Under 20" = "lightblue", 
+                               "20-29" = "steelblue", 
+                               "30-39" = "lightgreen", 
+                               "40-49" = "yellow", 
+                               "50-59" = "orange", 
+                               "60+" = "pink"))
+
+
+# Re-create age categories and include 'target' based on default status
+temp_train <- temp_train %>%
+  mutate(age = floor(abs(days_birth) / 365),  # Convert days to age
+         age_group = case_when(
+           age < 20 ~ "Under 20",
+           age >= 20 & age < 30 ~ "20-29",
+           age >= 30 & age < 40 ~ "30-39",
+           age >= 40 & age < 50 ~ "40-49",
+           age >= 50 & age < 60 ~ "50-59",
+           age >= 60 ~ "60+"  # Define age categories again for default status analysis
+         ))
+
+# Plotting the proportion of default status by 'age_group' with specific colors
+ggplot(temp_train, aes(x = age_group, fill = as.factor(target))) +
+  geom_bar(position = "fill", color = "steelblue", alpha = 0.6) +
+  scale_fill_manual(values = c("0" = "steelblue", "1" = "pink")) +  # Colors for "No" and "Yes" defaults
+  labs(
+    title = "Proportion of Default by Age Group",
+    x = "Age Group",
+    y = "Proportion",
+    fill = "Default Status"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14),
+    plot.title = element_text(size = 16, face = "bold")
+  )
+```
+
+When reviewing the general age ranges of applicants, we observe that the majority of loan applications come from individuals in the 20-29 and 60-70 age ranges. These two groups submit more loan applications than the intermediate age ranges, which may indicate higher loan demand or financial needs among these age groups. The 20-29 age group may represent young adults who are in the early stages of their financial journey, possibly seeking loans for personal or education-related purposes. Meanwhile, the 60-70 age group could be seeking loans for retirement or other post-work financial needs, which may explain their higher application rates.
+
+Upon analyzing the same age ranges in relation to the proportion of applicants who have defaulted versus those who have not, we observe a steady decline in default rates as applicants age. This is likely due to the increased income and financial stability that generally accompanies age, leading to a higher ability to repay loans. As individuals grow older, they typically experience more stable careers or access to retirement funds, reducing the likelihood of default.
+
+Additionally, it is noteworthy that the 60+ age range not only submits more loan applications than other age groups, but also demonstrates a significantly lower default rate. This indicates that, in this case, older applicants are more likely to repay their loans successfully, which could provide valuable insights into risk assessment for future lending decisions. As a result, Home Credit may consider treating older age groups as lower risk when assessing default risk and structuring loan offers.
+
+Although Home Credit cannot directly use age as a feature in loan default decisions due to potential regulatory constraints, this analysis can still be valuable. Understanding the financial behavior of applicants from different age groups allows Home Credit to tailor their marketing strategies and product offerings. For example, they could focus on providing specific loan terms or promotional offers to younger applicants while ensuring older applicants are offered products that suit their financial stability and needs. Additionally, these insights can be used to refine customer segmentation, ultimately leading to better customer satisfaction and more effective targeting.
+
+## To be continued...
+
+This evaluation is not complete and will to developed further to ensure a thorough evaluation of the data is performed.
+
+# Results
+
+
