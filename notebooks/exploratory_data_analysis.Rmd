@@ -1155,7 +1155,10 @@ ggplot(ext_source_temp, aes(x = value, color = source)) +
     y = "Density",
     color = "Source"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank()
+  )
 
 # Display imbalance summary for the temp_train dataset
 datatable(validate_imbalances(temp_train, threshold = 50))
@@ -1252,20 +1255,6 @@ setDT(temp_train)
 datatable(validate_imbalances(temp_train, threshold = 50))
 ```
 
-Changes:
-
-- Inverted day counts to be non-negative
-  Examples: avg_cc_months_balance, avg_days_late, avg_p_c_months_balance
-- Updated ext_source scores to the median of each predictor
-- Removed predictors with the highest missing_percentage
-  Examples: flag_document_10, flag_document_12, flag_document_2
-- Removed predictors with the highest zero_percentage
-  Examples: cash_loan_nonearmarked, loan_for_the_purchase_of_equipment, loan_for_working_capital_replenishment
-- Removed factor predictors with mostly the same category assigned
-  Examples: flag_mobil, flag_cont_mobile, reg_region_not_live_region
-
-NOTE: We notice some of the column generated in the above feature engineering ended up not having enough presence in the data to be helpful for full set evaluation. In future, it may be beneficial to expand this introductory analysis with a segmented class analysis. This could also enhance future model development as models can be produced for independent segments improving their ability to classify the provided data.
-
 ---
 
 
@@ -1289,20 +1278,25 @@ target_summary <- temp_train %>%
 # Plot the class proportions to evaluate class distribution
 ggplot(target_summary, aes(x = as.factor(target), y = proportion)) +
   geom_bar(
-    stat = "identity",  # Use bar heights to represent data values
-    fill = "steelblue",  # Color the bars
-    color = "steelblue",  # Bar border color
-    alpha = 0.6          # Set transparency for the bars
+    stat = "identity",
+    fill = "steelblue",
+    color = "steelblue",
+    alpha = 0.6
   ) +
   labs(
     title = "Loan Repayment vs. Default",  # Plot title
     x = "Applicant Defaulted",            # X-axis label
     y = "Proportion (%)"                   # Y-axis label
   ) +
-  theme_minimal()  # Minimal theme for a clean plot appearance
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
 ```
 
-Our assessment of the target variable indicates a significant class imbalance, with the majority class skewed toward non-default outcomes. If left unaddressed, this imbalance could cause models to bias heavily toward the majority class, resulting in misleading performance metrics and making it difficult to accurately evaluate and compare models. To mitigate this, we will consider strategies such as random sampling, oversampling the minority class, or undersampling the majority class during data preparation.
+Our assessment of the target variable indicates a significant class imbalance, with the majority class skewed toward non-default outcomes. If left unaddressed, this imbalance could cause models to bias heavily toward the majority class, resulting in incorrect predictions, misleading performance metrics and making it difficult to accurately evaluate and compare models. To mitigate this, we will consider strategies such as random sampling, oversampling the minority class, or undersampling the majority class during data preparation.
 
 ## Application Reception Analysis
 
@@ -1325,7 +1319,12 @@ temp_train %>%
     x = "Weekday",
     y = "Proportion"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
 
 # Prepare data for the histogram of the application process hour
 processing_hour_temp <- temp_train %>%
@@ -1343,7 +1342,12 @@ ggplot(processing_hour_temp, aes(x = value)) +
     x = "Hour of Application",
     y = "Density"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
 ```
 
 An analysis of the distribution of loan applications across weekdays and hours of the day reveals that most applications are submitted on Friday, Saturday, and Monday, typically between 7:30 AM and 3:00 PM. This information can be valuable for optimizing marketing campaigns, such as timing promotional offers, targeted outreach, and loan product advertisements to align with periods of higher customer engagement.
@@ -1366,7 +1370,10 @@ ggplot(temp_train_long, aes(x = predictor, y = value, fill = predictor)) +
   theme(
     axis.title.x = element_text(size = 14),
     axis.title.y = element_text(size = 14),
-    plot.title = element_text(size = 16, face = "bold")
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 
 # Filter out records where amt_income_total is an extreme outlier
@@ -1388,11 +1395,18 @@ ggplot(temp_train_long_filtered, aes(x = predictor, y = value, fill = predictor)
   theme(
     axis.title.x = element_text(size = 14),
     axis.title.y = element_text(size = 14),
-    plot.title = element_text(size = 16, face = "bold")
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 ```
 
-Based on our analysis of the loan amounts and applicant income, we observed a significant outlier in applicant income. This outlier has been removed in the second plot to allow for better visualization and comparison of the remaining amounts. Despite the removal of the outlier, a broad range of applicant income values remains, with the majority falling below the average values for the credit amounts provided and the cost of goods purchased. This suggests that the majority of applicants have relatively lower incomes in relation to the loan amounts they are seeking. The loan annuity, however, is less informative in this plot as it is overshadowed by the distributions of the other amounts.
+Based on our analysis of the loan amounts and applicant income, we observed a significant outlier in applicant income. This outlier has been removed in the second plot to allow for better visualization and comparison of the remaining amounts. Despite the removal of the outlier, a broad range of applicant income values remains, with the majority falling below the average values for the credit amounts provided and the cost of goods purchased. This suggests that the majority of applicants have relatively lower incomes in relation to the loan amounts they are seeking. 
+
+Furthermore, when comparing the amount of credit with the price of goods purchased, the distributions of both variables appear strikingly similar. This is an obvious assumption, as loans are often requested specifically to cover the cost of goods or services, and the two variables are likely to be closely tied in most cases, reinforcing the connection between the two.
+
+The loan annuity, however, is less informative in this plot as it is overshadowed by the distributions of the other amounts.
 
 ```{r}
 # Reshape the data into long format for grouped boxplot (only for amt_annuity)
@@ -1410,7 +1424,10 @@ ggplot(temp_train_long_filtered_amt_annuity, aes(x = predictor, y = value, fill 
   theme(
     axis.title.x = element_text(size = 14),
     axis.title.y = element_text(size = 14),
-    plot.title = element_text(size = 16, face = "bold")
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 ```
 
@@ -1437,7 +1454,10 @@ ggplot(temp_train_filtered[temp_train_filtered$predictor == "amt_annuity", ], ae
   theme(
     axis.title.x = element_text(size = 14),
     axis.title.y = element_text(size = 14),
-    plot.title = element_text(size = 16, face = "bold")
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 ```
 
@@ -1462,7 +1482,10 @@ ggplot(temp_train_filtered, aes(x = name_contract_type, fill = as.factor(target)
   theme(
     axis.title.x = element_text(size = 14),
     axis.title.y = element_text(size = 14),
-    plot.title = element_text(size = 16, face = "bold")
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 ```
 
@@ -1502,6 +1525,11 @@ ggplot(temp_train, aes(x = age, fill = age_group)) +
     fill = "Age Group"
   ) +
   theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  ) +
   scale_fill_manual(values = c("Under 20" = "lightblue", 
                                "20-29" = "steelblue", 
                                "30-39" = "lightgreen", 
@@ -1523,9 +1551,9 @@ temp_train <- temp_train %>%
          ))
 
 # Plotting the proportion of default status by 'age_group' with specific colors
-ggplot(temp_train, aes(x = age_group, fill = as.factor(target))) +
+ggplot(temp_train, aes(x = age_group, fill = target)) +
   geom_bar(position = "fill", color = "steelblue", alpha = 0.6) +
-  scale_fill_manual(values = c("0" = "steelblue", "1" = "pink")) +  # Colors for "No" and "Yes" defaults
+  scale_fill_manual(values = c("No" = "steelblue", "Yes" = "pink")) +  # Colors for "No" and "Yes" defaults
   labs(
     title = "Proportion of Default by Age Group",
     x = "Age Group",
@@ -1536,7 +1564,10 @@ ggplot(temp_train, aes(x = age_group, fill = as.factor(target))) +
   theme(
     axis.title.x = element_text(size = 14),
     axis.title.y = element_text(size = 14),
-    plot.title = element_text(size = 16, face = "bold")
+    plot.title = element_text(size = 16, face = "bold"),
+    panel.grid = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
   )
 ```
 
