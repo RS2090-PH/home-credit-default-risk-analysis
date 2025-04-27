@@ -1,3 +1,5 @@
+***Note:** This cheatsheet was developed by a third party entity. It is included here simply for the convenience of allowing me to refer back to it for markdown setup within this repository. The original source is the [markdownguide.org](https://www.markdownguide.org/cheat-sheet/) website.*
+
 # Markdown Cheat Sheet
 
 Thanks for visiting [The Markdown Guide](https://www.markdownguide.org)!
